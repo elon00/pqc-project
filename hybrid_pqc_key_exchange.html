@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid PQC Key Exchange - X25519 + ML-KEM-768</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a2a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .protocol-flow {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(20, 20, 40, 0.9);
+            border: 1px solid #2a2a4a;
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .client-panel .panel-title { color: #00d4ff; border-color: #00d4ff33; }
+        .server-panel .panel-title { color: #7b2ff7; border-color: #7b2ff733; }
+
+        .step {
+            background: rgba(30, 30, 50, 0.8);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid #555;
+            font-size: 0.85rem;
+        }
+
+        .step.active {
+            border-left-color: #00ff88;
+            animation: pulse 1.5s ease-in-out;
+        }
+
+        .step.completed {
+            border-left-color: #00d4ff;
+            opacity: 0.7;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 136, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.6); }
+        }
+
+        .key-display {
+            background: #0a0a15;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 8px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #aaa;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .key-label {
+            font-weight: bold;
+            color: #ffaa00;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-panel {
+            text-align: center;
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #00d4ff, #0088cc);
+            color: white;
+        }
+        .btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4); }
+
+        .btn-encrypt {
+            background: linear-gradient(135deg, #7b2ff7, #5500cc);
+            color: white;
+        }
+        .btn-encrypt:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(123, 47, 247, 0.4); }
+
+        .btn-reset {
+            background: transparent;
+            border: 2px solid #ff4444;
+            color: #ff4444;
+        }
+        .btn-reset:hover { background: #ff444422; }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .message-area {
+            background: rgba(20, 20, 40, 0.9);
+            border: 1px solid #2a2a4a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .message-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .message-input input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #0a0a15;
+            color: #fff;
+            font-size: 0.95rem;
+        }
+
+        .encrypted-box, .decrypted-box {
+            background: #0a0a15;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .status-pending { background: #ffaa0033; color: #ffaa00; }
+        .status-active { background: #00ff8833; color: #00ff88; animation: pulse 1.5s infinite; }
+        .status-secure { background: #00d4ff33; color: #00d4ff; }
+
+        .log-area {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #050510;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid #111;
+        }
+        .log-client { color: #00d4ff; }
+        .log-server { color: #7b2ff7; }
+        .log-info { color: #ffaa00; }
+        .log-success { color: #00ff88; }
+
+        /* ========================================== */
+        /* CHATBOT STYLES                             */
+        /* ========================================== */
+        #chatbot {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 1px solid #00d4ff;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        #chatbot-header {
+            background: linear-gradient(135deg, #00d4ff, #0088cc);
+            color: white;
+            padding: 12px 15px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            user-select: none;
+        }
+        #close-btn {
+            cursor: pointer;
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: color 0.2s, transform 0.2s;
+        }
+        #close-btn:hover {
+            color: #ff4444;
+            transform: scale(1.1);
+        }
+        #chatbot-content {
+            padding: 15px;
+            height: 300px;
+            color: #e0e0e0;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chat-msg {
+            padding: 10px 12px;
+            border-radius: 8px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .bot-msg {
+            background: rgba(30, 30, 50, 0.8);
+            border-left: 3px solid #00d4ff;
+            align-self: flex-start;
+        }
+        .user-msg {
+            background: rgba(0, 212, 255, 0.15);
+            border-right: 3px solid #00d4ff;
+            align-self: flex-end;
+            text-align: right;
+        }
+        #chatbot-footer {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(10, 10, 20, 0.95);
+            border-top: 1px solid #2a2a4a;
+        }
+        #chatbot-footer input {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid #444;
+            background: #050510;
+            color: white;
+            outline: none;
+        }
+        #chatbot-footer input:focus {
+            border-color: #00d4ff;
+        }
+        .chat-icon-btn {
+            background: #2a2a4a;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            padding: 0;
+        }
+        .chat-icon-btn:hover {
+            background: #00d4ff;
+            color: #000;
+        }
+        #mic-btn.recording {
+            background: #ff4444;
+            color: white;
+            animation: pulse-mic 1s infinite;
+        }
+        @keyframes pulse-mic {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 768px) {
+            .protocol-flow {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 हाइब्रिड PQC की-एक्सचेंज</h1>
+        <p class="subtitle">X25519 (पारंपरिक) + ML-KEM-768 (क्वांटम-सुरक्षित) | HKDF-SHA256 | AES-256-GCM</p>
+
+        <div class="protocol-flow">
+            <!-- Client Panel -->
+            <div class="panel client-panel">
+                <div class="panel-title">
+                    🖥️ क्लाइंट साइड
+                    <span class="status-badge status-pending" id="clientStatus">प्रतीक्षारत</span>
+                </div>
+                <div class="step" id="client-step1">
+                    <strong>चरण 1:</strong> X25519 + ML-KEM की-पेयर जनरेशन
+                    <div class="key-display" id="clientKeys" style="display:none;"></div>
+                </div>
+                <div class="step" id="client-step2">
+                    <strong>चरण 2:</strong> पब्लिक कीज़ सर्वर को भेजें (32 + 1184 बाइट्स)
+                </div>
+                <div class="step" id="client-step3">
+                    <strong>चरण 3:</strong> सर्वर से सिफरटेक्स्ट प्राप्त करें
+                </div>
+                <div class="step" id="client-step4">
+                    <strong>चरण 4:</strong> डिकैप्सुलेशन + HKDF → फाइनल AES की
+                    <div class="key-display" id="clientAesKey" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Server Panel -->
+            <div class="panel server-panel">
+                <div class="panel-title">
+                    🖧 सर्वर साइड
+                    <span class="status-badge status-pending" id="serverStatus">प्रतीक्षारत</span>
+                </div>
+                <div class="step" id="server-step1">
+                    <strong>चरण 1:</strong> क्लाइंट की पब्लिक कीज़ प्राप्त करें
+                </div>
+                <div class="step" id="server-step2">
+                    <strong>चरण 2:</strong> X25519 ECDH + ML-KEM एन्कैप्सुलेशन
+                </div>
+                <div class="step" id="server-step3">
+                    <strong>चरण 3:</strong> सिफरटेक्स्ट (1088 बाइट्स) क्लाइंट को भेजें
+                </div>
+                <div class="step" id="server-step4">
+                    <strong>चरण 4:</strong> HKDF → फाइनल AES की
+                    <div class="key-display" id="serverAesKey" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <button class="btn-start" id="btnStart" onclick="performHandshake()">
+                🔄 हैंडशेक शुरू करें
+            </button>
+            <button class="btn-encrypt" id="btnEncrypt" onclick="testEncryption()" disabled>
+                🔒 टेस्ट एन्क्रिप्शन
+            </button>
+            <button class="btn-reset" onclick="resetAll()">
+                🔁 रीसेट
+            </button>
+        </div>
+
+        <div class="message-area" id="messageArea" style="display:none;">
+            <h3 style="margin-bottom:10px;">📨 सुरक्षित संदेश परीक्षण</h3>
+            <div class="message-input">
+                <input type="text" id="messageInput" placeholder="अपना संदेश लिखें..." />
+                <button class="btn-encrypt" style="padding: 12px 20px;" onclick="sendMessage()">भेजें</button>
+            </div>
+            <div class="encrypted-box" id="encryptedBox" style="display:none;">
+                <strong>🔐 एन्क्रिप्टेड (सर्वर → क्लाइंट):</strong>
+                <div class="key-display" id="encryptedData"></div>
+            </div>
+            <div class="decrypted-box" id="decryptedBox" style="display:none;">
+                <strong>🔓 डिक्रिप्टेड (क्लाइंट):</strong>
+                <div style="color:#00ff88;font-size:1.1rem;margin-top:5px;" id="decryptedData"></div>
+            </div>
+        </div>
+
+        <div class="log-area" id="logArea">
+            <div class="log-entry log-info">📋 लॉग: सिस्टम तैयार। हैंडशेक शुरू करने के लिए बटन दबाएं।</div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CHATBOT HTML WITH VOICE AND TEXT UI        -->
+    <!-- ========================================== -->
+    <div id="chatbot">
+        <div id="chatbot-header">
+            <span>🤖 AI Guide</span>
+            <span id="close-btn" title="Close Chat">&times;</span>
+        </div>
+        <div id="chatbot-content">
+            <div class="chat-msg bot-msg">Hi! I'm your AI guide. You can type or use the mic to ask me anything!</div>
+        </div>
+        <div id="chatbot-footer">
+            <button id="mic-btn" class="chat-icon-btn" title="Voice Input">🎤</button>
+            <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off"/>
+            <button id="send-chat-btn" class="chat-icon-btn" title="Send Message">➤</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Chatbot Logic: Drag, Voice & Text Chat
+        // ==========================================
+        const chatbot = document.getElementById('chatbot');
+        const header = document.getElementById('chatbot-header');
+        const closeBtn = document.getElementById('close-btn');
+        const chatContent = document.getElementById('chatbot-content');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+        const micBtn = document.getElementById('mic-btn');
+
+        // --- Dragging functionality ---
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        header.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            const rect = chatbot.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            chatbot.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                e.preventDefault();
+                chatbot.style.right = 'auto';
+                chatbot.style.bottom = 'auto';
+                chatbot.style.left = (e.clientX - offsetX) + 'px';
+                chatbot.style.top = (e.clientY - offsetY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                chatbot.style.cursor = 'move';
+            }
+        });
+
+        closeBtn.addEventListener('click', function() {
+            chatbot.style.display = 'none';
+        });
+
+        // --- Chat Messaging functionality ---
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = sender === 'user' ? 'chat-msg user-msg' : 'chat-msg bot-msg';
+            msgDiv.textContent = text;
+            chatContent.appendChild(msgDiv);
+            chatContent.scrollTop = chatContent.scrollHeight; // Auto-scroll to bottom
+        }
+
+        // --- Voice Synthesis (Bot speaking) ---
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'hi-IN'; // Default to Hindi, works fine with English too
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function handleSend() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            
+            appendMessage('user', text);
+            chatInput.value = '';
+            
+            // Dummy logic for bot response (Replace with real API call later)
+            setTimeout(() => {
+                const reply = "यह सिर्फ एक डेमो रिस्पॉन्स है। आपने कहा: " + text;
+                appendMessage('bot', reply);
+                speak(reply); // Bot speaks the response
+            }, 800);
+        }
+
+        sendChatBtn.addEventListener('click', handleSend);
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        // --- Voice Recognition (User speaking) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN'; // Accepts Hindi and English mixed
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            micBtn.addEventListener('click', () => {
+                recognition.start();
+                micBtn.classList.add('recording');
+                chatInput.placeholder = "Listening...";
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                chatInput.value = transcript;
+                handleSend(); // Auto send after speaking
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
+                micBtn.classList.remove('recording');
+                chatInput.placeholder = "Type a message...";
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech Recognition Error", event.error);
+                micBtn.classList.remove('recording');
+                chatInput.placeholder = "Type a message...";
+            };
+        } else {
+            // Hide mic button if browser doesn't support Web Speech API
+            micBtn.style.display = 'none';
+        }
+
+
+        // ==========================================
+        // ML-KEM-768 सिम्युलेशन (वास्तविक स्ट्रक्चर के साथ)
+        // ==========================================
+        class MLKEM768Simulator {
+            constructor() {
+                this.PUBLIC_KEY_BYTES = 1184;
+                this.CIPHERTEXT_BYTES = 1088;
+                this.SHARED_SECRET_BYTES = 32;
+            }
+
+            async generateKeyPair() {
+                const privateKey = await crypto.subtle.generateKey(
+                    { name: "AES-GCM", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+                const exportedPrivate = await crypto.subtle.exportKey("raw", privateKey);
+                
+                const publicKey = new Uint8Array(this.PUBLIC_KEY_BYTES);
+                crypto.getRandomValues(publicKey);
+                publicKey.set(exportedPrivate.slice(0, 32), 0);
+                
+                const privateKeyBytes = new Uint8Array(exportedPrivate);
+                return { publicKey, privateKey: privateKeyBytes };
+            }
+
+            async encapsulate(publicKey) {
+                const sharedSecret = new Uint8Array(this.SHARED_SECRET_BYTES);
+                crypto.getRandomValues(sharedSecret);
+                
+                const ciphertext = new Uint8Array(this.CIPHERTEXT_BYTES);
+                crypto.getRandomValues(ciphertext);
+                ciphertext.set(sharedSecret.slice(0, 16), 0);
+                ciphertext.set(publicKey.slice(100, 116), 16);
+                
+                return { ciphertext, sharedSecret };
+            }
+
+            async decapsulate(ciphertext, privateKey) {
+                const sharedSecret = new Uint8Array(this.SHARED_SECRET_BYTES);
+                if (ciphertext.length === this.CIPHERTEXT_BYTES) {
+                    sharedSecret.set(ciphertext.slice(0, 16), 0);
+                    sharedSecret.set(privateKey.slice(0, 16), 16);
+                } else {
+                    crypto.getRandomValues(sharedSecret);
+                }
+                return sharedSecret;
+            }
+        }
+
+        // ==========================================
+        // ग्लोबल स्टेट
+        // ==========================================
+        const mlkem = new MLKEM768Simulator();
+        let clientState = {
+            x25519KeyPair: null, pqKeyPair: null, ecdhSecret: null, pqSecret: null, finalAesKey: null
+        };
+        let serverState = {
+            x25519KeyPair: null, ecdhSecret: null, pqCiphertext: null, pqSecret: null, finalAesKey: null, clientX25519Public: null, clientPQPublic: null
+        };
+
+        // ==========================================
+        // यूटिलिटी फंक्शन्स
+        // ==========================================
+        function bytesToHex(bytes) {
+            return Array.from(new Uint8Array(bytes))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        function hexToBytes(hex) {
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            }
+            return bytes;
+        }
+
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function updateStatus(elementId, status) {
+            const badge = document.getElementById(elementId);
+            badge.className = 'status-badge';
+            if (status === 'pending') badge.className += ' status-pending';
+            else if (status === 'active') badge.className += ' status-active';
+            else if (status === 'secure') badge.className += ' status-secure';
+            const textMap = { pending: 'प्रतीक्षारत', active: 'सक्रिय', secure: '🔒 सुरक्षित' };
+            badge.textContent = textMap[status] || status;
+        }
+
+        function activateStep(stepId) {
+            document.getElementById(stepId).classList.add('active');
+            setTimeout(() => {
+                document.getElementById(stepId).classList.remove('active');
+                document.getElementById(stepId).classList.add('completed');
+            }, 1500);
+        }
+
+        // ==========================================
+        // HKDF इम्प्लीमेंटेशन
+        // ==========================================
+        async function performHKDF(ecdhSecret, pqSecret, salt = null) {
+            const combinedSecret = new Uint8Array(ecdhSecret.length + pqSecret.length);
+            combinedSecret.set(ecdhSecret, 0);
+            combinedSecret.set(pqSecret, ecdhSecret.length);
+
+            const encoder = new TextEncoder();
+            const info = encoder.encode("HybridPQ-v1.0-AES-256-GCM-Key");
+
+            const keyMaterial = await crypto.subtle.importKey(
+                "raw", combinedSecret, { name: "HKDF" }, false, ["deriveBits"]
+            );
+
+            const derivedBits = await crypto.subtle.deriveBits(
+                { name: "HKDF", hash: "SHA-256", salt: salt || new Uint8Array(32), info: info },
+                keyMaterial, 256
+            );
+
+            return new Uint8Array(derivedBits);
+        }
+
+        // ==========================================
+        // मुख्य हैंडशेक प्रोटोकॉल
+        // ==========================================
+        async function performHandshake() {
+            const btnStart = document.getElementById('btnStart');
+            const btnEncrypt = document.getElementById('btnEncrypt');
+            btnStart.disabled = true;
+            btnStart.textContent = '⏳ हैंडशेक चल रहा है...';
+
+            log('🔄 हाइब्रिड PQC हैंडशेक शुरू...', 'info');
+
+            try {
+                log('🔑 क्लाइंट: X25519 + ML-KEM-768 की-पेयर जनरेट कर रहा है...', 'client');
+                updateStatus('clientStatus', 'active');
+                activateStep('client-step1');
+
+                clientState.x25519KeyPair = await crypto.subtle.generateKey(
+                    { name: "ECDH", namedCurve: "X25519" }, true, ["deriveBits"]
+                );
+
+                clientState.pqKeyPair = await mlkem.generateKeyPair();
+
+                const clientX25519PublicRaw = await crypto.subtle.exportKey(
+                    "raw", clientState.x25519KeyPair.publicKey
+                );
+                const clientX25519Public = new Uint8Array(clientX25519PublicRaw);
+                const clientPQPublic = clientState.pqKeyPair.publicKey;
+
+                const clientKeysDiv = document.getElementById('clientKeys');
+                clientKeysDiv.style.display = 'block';
+                clientKeysDiv.innerHTML = `
+                    <span class="key-label">X25519 पब्लिक की (32 बाइट्स):</span>
+                    <div>${bytesToHex(clientX25519Public).substring(0, 64)}...</div>
+                    <span class="key-label">ML-KEM-768 पब्लिक की (1184 बाइट्स):</span>
+                    <div>${bytesToHex(clientPQPublic).substring(0, 64)}...</div>
+                `;
+
+                log(`✅ क्लाइंट कीज़ तैयार: X25519 (32B) + ML-KEM-768 (1184B)`, 'success');
+                updateStatus('clientStatus', 'secure');
+
+                log('📤 क्लाइंट → सर्वर: पब्लिक कीज़ भेज रहा है (कुल 1216 बाइट्स)...', 'client');
+                activateStep('client-step2');
+                activateStep('server-step1');
+                updateStatus('serverStatus', 'active');
+
+                serverState.clientX25519Public = clientX25519Public;
+                serverState.clientPQPublic = clientPQPublic;
+
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                log('🔧 सर्वर: X25519 ECDH + ML-KEM एन्कैप्सुलेशन कर रहा है...', 'server');
+                activateStep('server-step2');
+
+                serverState.x25519KeyPair = await crypto.subtle.generateKey(
+                    { name: "ECDH", namedCurve: "X25519" }, true, ["deriveBits"]
+                );
+
+                const serverX25519PublicRaw = await crypto.subtle.exportKey(
+                    "raw", serverState.x25519KeyPair.publicKey
+                );
+                const serverX25519Public = new Uint8Array(serverX25519PublicRaw);
+
+                serverState.ecdhSecret = new Uint8Array(
+                    await crypto.subtle.deriveBits(
+                        {
+                            name: "ECDH",
+                            public: await crypto.subtle.importKey(
+                                "raw", serverState.clientX25519Public, { name: "ECDH", namedCurve: "X25519" }, true, []
+                            )
+                        },
+                        serverState.x25519KeyPair.privateKey, 256
+                    )
+                );
+
+                const encapsResult = await mlkem.encapsulate(serverState.clientPQPublic);
+                serverState.pqCiphertext = encapsResult.ciphertext;
+                serverState.pqSecret = encapsResult.sharedSecret;
+
+                log(`✅ सर्वर सीक्रेट्स तैयार: ECDH (32B) + PQ (32B)`, 'success');
+                log(`📦 सिफरटेक्स्ट साइज: ${serverState.pqCiphertext.length} बाइट्स (ML-KEM-768)`, 'info');
+                updateStatus('serverStatus', 'secure');
+
+                log('📤 सर्वर → क्लाइंट: X25519 पब्लिक की (32B) + सिफरटेक्स्ट (1088B) भेज रहा है...', 'server');
+                activateStep('server-step3');
+                activateStep('client-step3');
+
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                log('🔓 क्लाइंट: ECDH डिराइव + ML-KEM डिकैप्सुलेशन कर रहा है...', 'client');
+                activateStep('client-step4');
+                activateStep('server-step4');
+
+                clientState.ecdhSecret = new Uint8Array(
+                    await crypto.subtle.deriveBits(
+                        {
+                            name: "ECDH",
+                            public: await crypto.subtle.importKey(
+                                "raw", serverX25519Public, { name: "ECDH", namedCurve: "X25519" }, true, []
+                            )
+                        },
+                        clientState.x25519KeyPair.privateKey, 256
+                    )
+                );
+
+                clientState.pqSecret = await mlkem.decapsulate(
+                    serverState.pqCiphertext, clientState.pqKeyPair.privateKey
+                );
+
+                log('🔐 HKDF-SHA256: फाइनल AES-256 की डिराइव कर रहा है...', 'info');
+                
+                clientState.finalAesKey = await performHKDF(clientState.ecdhSecret, clientState.pqSecret);
+                serverState.finalAesKey = await performHKDF(serverState.ecdhSecret, serverState.pqSecret);
+
+                const clientAesDiv = document.getElementById('clientAesKey');
+                clientAesDiv.style.display = 'block';
+                clientAesDiv.innerHTML = `
+                    <span class="key-label">फाइनल AES-256 की (HKDF):</span>
+                    <div>${bytesToHex(clientState.finalAesKey)}</div>
+                `;
+
+                const serverAesDiv = document.getElementById('serverAesKey');
+                serverAesDiv.style.display = 'block';
+                serverAesDiv.innerHTML = `
+                    <span class="key-label">फाइनल AES-256 की (HKDF):</span>
+                    <div>${bytesToHex(serverState.finalAesKey)}</div>
+                `;
+
+                const clientHex = bytesToHex(clientState.finalAesKey);
+                const serverHex = bytesToHex(serverState.finalAesKey);
+
+                if (clientHex === serverHex) {
+                    log('✅✅✅ हैंडशेक सफल! दोनों पक्षों के पास समान AES की है।', 'success');
+                    log(`🔑 फाइनल की: ${clientHex}`, 'success');
+                    log('💡 क्वांटम-सुरक्षित: यदि X25519 भी क्रैक हो जाए, HKDF के कारण की सुरक्षित रहेगी।', 'info');
+                    
+                    updateStatus('clientStatus', 'secure');
+                    updateStatus('serverStatus', 'secure');
+                    
+                    btnEncrypt.disabled = false;
+                    document.getElementById('messageArea').style.display = 'block';
+                } else {
+                    log('❌ एरर: कीज़ मैच नहीं करतीं! Implicit Rejection का परिणाम।', 'info');
+                    log('⚠️ यह सामान्य है यदि सिफरटेक्स्ट में छेड़छाड़ हुई हो।', 'info');
+                }
+
+            } catch (error) {
+                log(`❌ एरर: ${error.message}`, 'info');
+                console.error(error);
+            } finally {
+                btnStart.disabled = false;
+                btnStart.textContent = '🔄 हैंडशेक शुरू करें';
+            }
+        }
+
+        // ==========================================
+        // एन्क्रिप्शन/डिक्रिप्शन टेस्ट
+        // ==========================================
+        async function testEncryption() {
+            if (!clientState.finalAesKey || !serverState.finalAesKey) {
+                alert('पहले हैंडशेक पूरा करें!');
+                return;
+            }
+
+            const message = document.getElementById('messageInput').value || 'Hello, Quantum-Safe World! 🛡️';
+            log(`📝 टेस्ट संदेश: "${message}"`, 'info');
+
+            try {
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+
+                const serverKey = await crypto.subtle.importKey(
+                    "raw", serverState.finalAesKey, { name: "AES-GCM", length: 256 }, false, ["encrypt"]
+                );
+
+                const clientKey = await crypto.subtle.importKey(
+                    "raw", clientState.finalAesKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
+                );
+
+                const encoder = new TextEncoder();
+                const encodedMessage = encoder.encode(message);
+                
+                const encryptedData = await crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv }, serverKey, encodedMessage
+                );
+
+                const encryptedBytes = new Uint8Array(encryptedData);
+                log(`🔐 एन्क्रिप्टेड (${encryptedBytes.length} बाइट्स): ${bytesToHex(encryptedBytes).substring(0, 40)}...`, 'server');
+
+                document.getElementById('encryptedBox').style.display = 'block';
+                document.getElementById('encryptedData').textContent = 
+                    `IV: ${bytesToHex(iv)}\nडेटा: ${bytesToHex(encryptedBytes)}`;
+
+                const decryptedData = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv }, clientKey, encryptedData
+                );
+
+                const decoder = new TextDecoder();
+                const decryptedMessage = decoder.decode(decryptedData);
+
+                log(`🔓 डिक्रिप्टेड: "${decryptedMessage}"`, 'client');
+
+                document.getElementById('decryptedBox').style.display = 'block';
+                document.getElementById('decryptedData').textContent = `"${decryptedMessage}"`;
+
+                if (decryptedMessage === message) {
+                    log('✅✅ एन्क्रिप्शन/डिक्रिप्शन सफल! हाइब्रिड PQC सिस्टम पूरी तरह कार्यरत है।', 'success');
+                }
+
+            } catch (error) {
+                log(`❌ एन्क्रिप्शन एरर: ${error.message}`, 'info');
+            }
+        }
+
+        async function sendMessage() {
+            await testEncryption();
+        }
+
+        function resetAll() {
+            clientState = { x25519KeyPair: null, pqKeyPair: null, ecdhSecret: null, pqSecret: null, finalAesKey: null };
+            serverState = { x25519KeyPair: null, ecdhSecret: null, pqCiphertext: null, pqSecret: null, finalAesKey: null, clientX25519Public: null, clientPQPublic: null };
+
+            document.getElementById('clientKeys').style.display = 'none';
+            document.getElementById('clientAesKey').style.display = 'none';
+            document.getElementById('serverAesKey').style.display = 'none';
+            document.getElementById('encryptedBox').style.display = 'none';
+            document.getElementById('decryptedBox').style.display = 'none';
+            document.getElementById('messageArea').style.display = 'none';
+            document.getElementById('btnEncrypt').disabled = true;
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStart').textContent = '🔄 हैंडशेक शुरू करें';
+            document.getElementById('messageInput').value = '';
+
+            updateStatus('clientStatus', 'pending');
+            updateStatus('serverStatus', 'pending');
+
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+
+            document.getElementById('logArea').innerHTML = 
+                '<div class="log-entry log-info">📋 लॉग: सिस्टम रीसेट। नया हैंडशेक शुरू करने के लिए तैयार।</div>';
+
+            log('🔄 सिस्टम रीसेट हो गया।', 'info');
+        }
+
+        log('🚀 हाइब्रिड PQC की-एक्सचेंज सिस्टम तैयार।', 'info');
+        log('📊 प्रोटोकॉल: X25519 + ML-KEM-768 + HKDF-SHA256 + AES-256-GCM', 'info');
+        log('⚠️ नोट: ML-KEM-768 सिम्युलेटेड है। प्रोडक्शन में liboqs-js का उपयोग करें।', 'info');
+    </script>
+</body>
+</html>

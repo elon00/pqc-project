@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid PQC Key Exchange - X25519 + ML-KEM-768</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <div class="nav-brand">🔐 Hybrid PQC Key Exchange</div>
+            <div class="nav-status" id="navStatus">Connecting to server...</div>
+        </nav>
+
+        <header class="header">
+            <h1>🔐 Hybrid PQC Key Exchange</h1>
+            <p class="subtitle">X25519 (Classical) + ML-KEM-768 (Quantum-Safe) | HKDF-SHA256 | AES-256-GCM</p>
+        </header>
+
+        <div class="protocol-flow">
+            <!-- Client Panel -->
+            <div class="panel client-panel">
+                <div class="panel-title">
+                    🖥️ Client Side
+                    <span class="status-badge status-pending" id="clientStatus">Pending</span>
+                </div>
+                <div class="step" id="client-step1">
+                    <strong>Step 1:</strong> Generate X25519 + ML-KEM-768 Key Pair
+                    <div class="key-display" id="clientKeys" style="display:none;"></div>
+                </div>
+                <div class="step" id="client-step2">
+                    <strong>Step 2:</strong> Send Public Keys to Server (32 + 1184 bytes)
+                </div>
+                <div class="step" id="client-step3">
+                    <strong>Step 3:</strong> Receive Ciphertext from Server
+                </div>
+                <div class="step" id="client-step4">
+                    <strong>Step 4:</strong> Decapsulation + HKDF → Final AES Key
+                    <div class="key-display" id="clientAesKey" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Server Panel -->
+            <div class="panel server-panel">
+                <div class="panel-title">
+                    🖧 Server Side
+                    <span class="status-badge status-pending" id="serverStatus">Pending</span>
+                </div>
+                <div class="step" id="server-step1">
+                    <strong>Step 1:</strong> Receive Client Public Keys
+                </div>
+                <div class="step" id="server-step2">
+                    <strong>Step 2:</strong> X25519 ECDH + ML-KEM Encapsulation
+                </div>
+                <div class="step" id="server-step3">
+                    <strong>Step 3:</strong> Send Ciphertext (1088 bytes) to Client
+                </div>
+                <div class="step" id="server-step4">
+                    <strong>Step 4:</strong> HKDF → Final AES Key
+                    <div class="key-display" id="serverAesKey" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <button class="btn-start" id="btnStart" onclick="startHandshake()">
+                🔄 Start Handshake
+            </button>
+            <button class="btn-encrypt" id="btnEncrypt" onclick="testEncryption()" disabled>
+                🔒 Test Encryption
+            </button>
+            <button class="btn-reset" onclick="resetUI()">
+                🔁 Reset
+            </button>
+        </div>
+
+        <div class="stats-panel">
+            <h3>📊 Protocol Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Client Public Key:</span>
+                    <span class="stat-value">1,216 Bytes</span>
+                    <span class="stat-detail">32B (X25519) + 1,184B (ML-KEM-768)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Server Ciphertext:</span>
+                    <span class="stat-value">1,120 Bytes</span>
+                    <span class="stat-detail">32B (X25519) + 1,088B (ML-KEM-768)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Final AES Key:</span>
+                    <span class="stat-value">256-bit</span>
+                    <span class="stat-detail">Derived via HKDF-SHA256</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Encryption:</span>
+                    <span class="stat-value">AES-256-GCM</span>
+                    <span class="stat-detail">With Authentication</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="message-area" id="messageArea" style="display:none;">
+            <h3>📨 Secure Message Test</h3>
+            <div class="message-input">
+                <input type="text" id="messageInput" placeholder="Enter your message..." />
+                <button class="btn-encrypt" onclick="sendMessage()">Send</button>
+            </div>
+            <div class="encrypted-box" id="encryptedBox" style="display:none;">
+                <strong>🔐 Encrypted (Server → Client):</strong>
+                <div class="key-display" id="encryptedData"></div>
+            </div>
+            <div class="decrypted-box" id="decryptedBox" style="display:none;">
+                <strong>🔓 Decrypted (Client):</strong>
+                <div style="color:#00ff88;font-size:1.1rem;margin-top:5px;" id="decryptedData"></div>
+            </div>
+        </div>
+
+        <div class="log-area" id="logArea">
+            <div class="log-entry log-info">📋 System Ready. Click Start Handshake to begin.</div>
+        </div>
+
+        <!-- AI Chatbot Sidebar -->
+        <div class="chatbot-sidebar" id="chatbotSidebar">
+            <div class="chatbot-header">
+                <h3>🤖 AI Guide</h3>
+                <button class="chatbot-toggle" id="chatbotToggle" onclick="toggleChatbot()">
+                    ─
+                </button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <div class="chat-message bot-message">
+                    <div class="message-text">Hi! I'm your AI guide. Ask me anything about this PQC demo! 👋</div>
+                </div>
+            </div>
+            <div class="chatbot-input">
+                <input 
+                    type="text" 
+                    id="chatInput" 
+                    placeholder="Ask me something..." 
+                    onkeypress="handleChatKeypress(event)"
+                />
+                <button class="chat-send-btn" onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

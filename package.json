@@ -1,0 +1,31 @@
+{
+  "name": "hybrid-pqc-key-exchange",
+  "version": "1.0.0",
+  "description": "Hybrid Post-Quantum Cryptography Key Exchange Prototype (X25519 + ML-KEM-768)",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pqc",
+    "post-quantum-cryptography",
+    "hybrid-key-exchange",
+    "x25519",
+    "ml-kem-768",
+    "quantum-safe"
+  ],
+  "author": "PQC Research Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
