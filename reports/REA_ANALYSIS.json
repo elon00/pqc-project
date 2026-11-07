@@ -1,0 +1,80 @@
+{
+  "engine": "REA_Reverse_Engineer_Anything",
+  "status": "STRUCTURE_RECONSTRUCTED",
+  "analyzed_files": 24,
+  "manifest": {
+    "API_EXAMPLES.md": {
+      "bytes": 9728
+    },
+    "CHATBOT_SETUP.md": {
+      "bytes": 6057
+    },
+    "docker-compose.yml": {
+      "bytes": 475
+    },
+    "Dockerfile": {
+      "bytes": 483
+    },
+    "hybrid_pqc_key_exchange.html": {
+      "bytes": 40490
+    },
+    "INDEX.md": {
+      "bytes": 9714
+    },
+    "package.json": {
+      "bytes": 755
+    },
+    "QUICKSTART.md": {
+      "bytes": 4009
+    },
+    "README.md": {
+      "bytes": 9851
+    },
+    "server.js": {
+      "bytes": 1587
+    },
+    "start.bat": {
+      "bytes": 1033
+    },
+    "start.sh": {
+      "bytes": 1267
+    },
+    "TODO.md": {
+      "bytes": 313
+    },
+    "public\\index.html": {
+      "bytes": 6824
+    },
+    "routes\\api.js": {
+      "bytes": 9976
+    },
+    "scripts\\rea_inspector.py": {
+      "bytes": 1485
+    },
+    "scripts\\rsi_engine.py": {
+      "bytes": 2039
+    },
+    "tests\\reality_check_harness.py": {
+      "bytes": 1250
+    },
+    "utils\\claude.js": {
+      "bytes": 453
+    },
+    "utils\\crypto.js": {
+      "bytes": 5078
+    },
+    "utils\\gemini.js": {
+      "bytes": 5003
+    },
+    ".github\\workflows\\qmoosa-rsi-rea-sync.yml": {
+      "bytes": 531
+    },
+    "public\\css\\styles.css": {
+      "bytes": 11857
+    },
+    "public\\js\\app.js": {
+      "bytes": 14243
+    }
+  },
+  "timestamp": 1794017338
+}
